@@ -68,6 +68,10 @@ def record_evidence(capability, provider, run_id, payload, evidence_dir, collect
     cap_dir = evidence_dir / capability
     cap_dir.mkdir(parents=True, exist_ok=True)
     record_file = cap_dir / f"{run_id}.json"
+    if record_file.exists():
+        raise FileExistsError(
+            f"evidence record already exists for capability '{capability}' run_id '{run_id}': {record_file}"
+        )
     record_file.write_text(json.dumps(asdict(record), indent=2, sort_keys=True))
     file_sha256 = sha256_hex(record_file.read_bytes())
     with _chain_path(evidence_dir, capability).open("a") as fh:
@@ -84,6 +88,17 @@ def record_evidence(capability, provider, run_id, payload, evidence_dir, collect
 
 
 def verify_chain(capability, evidence_dir) -> bool:
+    """Verify a capability's evidence chain.
+
+    Detects modification of any record field (the whole record file is re-hashed
+    against the stored file_sha256), payload tampering, and reordering or
+    mid-chain dropping of records (via prev_hash linkage). Any anomaly -> False.
+
+    Known limitation: this does NOT detect truncation of the chain's tail. The
+    design has no terminal seal or expected record count, so removing the last N
+    records leaves a still-valid shorter chain. A terminal-seal/expected-count
+    design is a future enhancement.
+    """
     evidence_dir = Path(evidence_dir)
     cp = _chain_path(evidence_dir, capability)
     if not cp.exists():
@@ -92,18 +107,23 @@ def verify_chain(capability, evidence_dir) -> bool:
     for line in cp.read_text().splitlines():
         if not line.strip():
             continue
-        entry = json.loads(line)
-        if entry["prev_hash"] != prev:
-            return False
-        record_file = evidence_dir / capability / entry["file"]
-        rec = json.loads(record_file.read_text())
-        recomputed = _compute_record_hash(
-            rec["capability"], rec["provider"], rec["run_id"],
-            rec["collected_at"], rec["payload_sha256"], rec["prev_hash"],
-        )
-        if sha256_hex(canonical_json(rec["payload"])) != rec["payload_sha256"]:
-            return False
-        if recomputed != entry["record_hash"] or rec["record_hash"] != entry["record_hash"]:
+        try:
+            entry = json.loads(line)
+            if entry["prev_hash"] != prev:
+                return False
+            record_file = evidence_dir / capability / entry["file"]
+            if sha256_hex(record_file.read_bytes()) != entry["file_sha256"]:
+                return False
+            rec = json.loads(record_file.read_text())
+            recomputed = _compute_record_hash(
+                rec["capability"], rec["provider"], rec["run_id"],
+                rec["collected_at"], rec["payload_sha256"], rec["prev_hash"],
+            )
+            if sha256_hex(canonical_json(rec["payload"])) != rec["payload_sha256"]:
+                return False
+            if recomputed != entry["record_hash"] or rec["record_hash"] != entry["record_hash"]:
+                return False
+        except (FileNotFoundError, KeyError, json.JSONDecodeError):
             return False
         prev = entry["record_hash"]
     return True

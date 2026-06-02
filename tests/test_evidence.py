@@ -30,3 +30,25 @@ def test_verify_detects_payload_tampering(tmp_path):
     doc["payload"]["x"] = 999
     record_file.write_text(json.dumps(doc, indent=2, sort_keys=True))
     assert verify_chain("fixture", tmp_path) is False
+
+
+def test_verify_detects_nonpayload_field_tampering(tmp_path):
+    record_evidence("fixture", "aws", "r1", {"x": 1}, tmp_path, collected_at="2026-06-02T00:00:00Z")
+    record_file = tmp_path / "fixture" / "r1.json"
+    doc = json.loads(record_file.read_text())
+    doc["schema_version"] = "9.9.9"
+    record_file.write_text(json.dumps(doc, indent=2, sort_keys=True))
+    assert verify_chain("fixture", tmp_path) is False
+
+
+def test_verify_returns_false_when_record_file_missing(tmp_path):
+    record_evidence("fixture", "aws", "r1", {"x": 1}, tmp_path, collected_at="2026-06-02T00:00:00Z")
+    (tmp_path / "fixture" / "r1.json").unlink()
+    assert verify_chain("fixture", tmp_path) is False
+
+
+def test_duplicate_run_id_raises(tmp_path):
+    import pytest
+    record_evidence("fixture", "aws", "r1", {"x": 1}, tmp_path, collected_at="2026-06-02T00:00:00Z")
+    with pytest.raises(FileExistsError):
+        record_evidence("fixture", "aws", "r1", {"x": 2}, tmp_path, collected_at="2026-06-02T00:00:01Z")
