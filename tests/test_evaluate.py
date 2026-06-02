@@ -18,3 +18,10 @@ def test_evaluate_fail_collects_violations():
     out = evaluate(FIX / "policy", "fr20x.fixture", {"enabled": False})
     assert out["result"] == "fail"
     assert "fixture resource not enabled" in out["violations"]
+
+
+def test_evaluate_raises_evaluation_error_on_invalid_policy(tmp_path):
+    from engine.evaluate import EvaluationError
+    (tmp_path / "bad.rego").write_text("package fr20x.bad\nthis is not valid rego\n")
+    with pytest.raises(EvaluationError):
+        evaluate(tmp_path, "fr20x.bad", {"enabled": True})
