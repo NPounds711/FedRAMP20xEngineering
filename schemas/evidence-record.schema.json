@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Evidence Record",
+  "type": "object",
+  "required": ["schema_version", "capability", "provider", "run_id", "collected_at", "payload", "payload_sha256", "prev_hash", "record_hash"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "capability": {"type": "string"},
+    "provider": {"type": "string"},
+    "run_id": {"type": "string", "minLength": 1},
+    "collected_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+    "payload": {"type": "object"},
+    "payload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "prev_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "record_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

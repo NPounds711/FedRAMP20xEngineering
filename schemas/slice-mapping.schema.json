@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Slice Mapping",
+  "type": "object",
+  "required": ["capability", "ksis", "nist_controls", "providers", "rego_package"],
+  "additionalProperties": true,
+  "properties": {
+    "capability": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "title": {"type": "string"},
+    "ksis": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "obligation"],
+        "properties": {
+          "id": {"type": "string"},
+          "obligation": {"enum": ["required", "recommended"]}
+        }
+      }
+    },
+    "nist_controls": {"type": "array", "items": {"type": "string"}},
+    "providers": {"type": "array", "items": {"type": "string"}},
+    "evidence_source": {"type": "string"},
+    "rego_package": {"type": "string"}
+  }
+}

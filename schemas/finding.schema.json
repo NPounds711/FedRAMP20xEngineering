@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Determination",
+  "description": "Framework-agnostic determination: one collected fact aligned to all controls/KSIs it satisfies.",
+  "type": "object",
+  "required": ["capability", "result", "evidence_ref", "collected_at", "frameworks"],
+  "additionalProperties": false,
+  "properties": {
+    "capability": {"type": "string"},
+    "title": {"type": "string"},
+    "result": {"enum": ["pass", "fail"]},
+    "violations": {"type": "array", "items": {"type": "string"}},
+    "evidence_ref": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "collected_at": {"type": "string"},
+    "frameworks": {
+      "type": "object",
+      "required": ["fedramp-20x", "nist-800-53-rev5"],
+      "properties": {
+        "fedramp-20x": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["ksi", "obligation"],
+            "properties": {
+              "ksi": {"type": "string"},
+              "obligation": {"enum": ["required", "recommended"]}
+            }
+          }
+        },
+        "nist-800-53-rev5": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}
