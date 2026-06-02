@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fedramp20x-engineering"
+version = "0.1.0"
+description = "FedRAMP advisory + framework-agnostic evidence toolkit"
+requires-python = ">=3.12"
+dependencies = ["PyYAML>=6.0", "jsonschema>=4.21"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+fr20x = "engine.cli:main"
+
+[tool.setuptools]
+packages = ["engine", "engine.render", "tools"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
