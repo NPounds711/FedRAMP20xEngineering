@@ -40,3 +40,30 @@ def test_run_slice_end_to_end(tmp_path, capsys):
     assert det["result"] == "pass"
     assert det["frameworks"]["nist-800-53-rev5"] == ["ac-1"]
     assert main(["verify", "fixture", "--evidence-dir", str(tmp_path / "evidence")]) == 0
+
+
+def test_verify_reports_tampered(tmp_path, capsys):
+    import json as _json
+
+    from engine.evidence import record_evidence
+    ev = tmp_path / "evidence"
+    record_evidence("fixture", "fixture", "r1", {"enabled": True}, ev, collected_at="2026-06-02T00:00:00Z")
+    rec_file = ev / "fixture" / "r1.json"
+    doc = _json.loads(rec_file.read_text())
+    doc["payload"]["enabled"] = False
+    rec_file.write_text(_json.dumps(doc, indent=2, sort_keys=True))
+    rc = main(["verify", "fixture", "--evidence-dir", str(ev)])
+    assert rc == 1
+    assert "TAMPERED" in capsys.readouterr().out
+
+
+def test_verify_missing_chain_errors(tmp_path):
+    rc = main(["verify", "nope", "--evidence-dir", str(tmp_path / "evidence")])
+    assert rc == 2
+
+
+def test_run_slice_bad_path_clean_error(tmp_path, capsys):
+    rc = main(["run-slice", str(tmp_path / "nonexistent-slice"), "--provider", "fixture",
+               "--run-id", "x", "--evidence-dir", str(tmp_path / "ev")])
+    assert rc == 1
+    assert "fr20x: error:" in capsys.readouterr().err

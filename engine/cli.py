@@ -3,10 +3,13 @@ import json
 import sys
 from pathlib import Path
 
+from jsonschema import ValidationError
+
 from engine import align as align_mod
 from engine import collect as collect_mod
 from engine import evaluate as eval_mod
 from engine import report as report_mod
+from engine.evaluate import EvaluationError, OpaNotInstalled
 from engine.evidence import record_evidence, verify_chain
 from engine.render import human as render_human
 from engine.render import json as render_json
@@ -20,6 +23,15 @@ _RENDERERS = {
     "oscal": render_oscal,
     "human": render_human,
 }
+
+_USER_ERRORS = (
+    FileNotFoundError,
+    FileExistsError,
+    json.JSONDecodeError,
+    ValidationError,
+    OpaNotInstalled,
+    EvaluationError,
+)
 
 
 def _run_slice(slice_dir, provider, evidence_dir, run_id):
@@ -35,7 +47,7 @@ def _load_determinations(path):
     return data if isinstance(data, list) else [data]
 
 
-def main(argv=None):
+def _build_parser():
     parser = argparse.ArgumentParser(prog="fr20x")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
@@ -60,9 +72,10 @@ def main(argv=None):
     vc = sub.add_parser("verify", help="verify a capability's evidence chain")
     vc.add_argument("capability")
     vc.add_argument("--evidence-dir", default="evidence")
+    return parser
 
-    args = parser.parse_args(argv)
 
+def _dispatch(args) -> int:
     if args.cmd == "run-slice":
         det = _run_slice(args.slice_dir, args.provider, args.evidence_dir, args.run_id)
         print(json.dumps(det, indent=2, sort_keys=True))
@@ -81,10 +94,28 @@ def main(argv=None):
         print(json.dumps(do_sync(args.dest, args.offline_dir), indent=2))
         return 0
     if args.cmd == "verify":
+        chain = Path(args.evidence_dir) / args.capability / "chain.jsonl"
+        if not chain.exists():
+            print(
+                f"fr20x: error: no evidence chain for capability "
+                f"'{args.capability}' under {args.evidence_dir}",
+                file=sys.stderr,
+            )
+            return 2
         ok = verify_chain(args.capability, args.evidence_dir)
         print("OK" if ok else "TAMPERED")
         return 0 if ok else 1
     return 2
+
+
+def main(argv=None):
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    try:
+        return _dispatch(args)
+    except _USER_ERRORS as exc:
+        print(f"fr20x: error: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
