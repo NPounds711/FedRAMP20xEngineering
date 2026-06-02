@@ -1,0 +1,11 @@
+{
+  "FRMR": {
+    "KSI": [
+      {"family": "FIX", "indicators": [
+        {"id": "KSI-A", "indicator": "MUST do A"},
+        {"id": "KSI-C", "indicator": "MUST do C"},
+        {"id": "KSI-D", "indicator": "SHOULD do D"}
+      ]}
+    ]
+  }
+}
