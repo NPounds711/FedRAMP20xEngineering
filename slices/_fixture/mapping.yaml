@@ -1,0 +1,11 @@
+capability: fixture
+title: Fixture Capability
+ksis:
+  - id: KSI-FIX-01
+    obligation: required
+nist_controls:
+  - ac-1
+providers:
+  - fixture
+evidence_source: "fixture in-memory data"
+rego_package: fr20x.fixture

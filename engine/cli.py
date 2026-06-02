@@ -1,0 +1,91 @@
+import argparse
+import json
+import sys
+from pathlib import Path
+
+from engine import align as align_mod
+from engine import collect as collect_mod
+from engine import evaluate as eval_mod
+from engine import report as report_mod
+from engine.evidence import record_evidence, verify_chain
+from engine.render import human as render_human
+from engine.render import json as render_json
+from engine.render import oscal as render_oscal
+from engine.render import yaml as render_yaml
+from engine.slice import load_mapping
+
+_RENDERERS = {
+    "json": render_json,
+    "yaml": render_yaml,
+    "oscal": render_oscal,
+    "human": render_human,
+}
+
+
+def _run_slice(slice_dir, provider, evidence_dir, run_id):
+    mapping = load_mapping(slice_dir)
+    payload = collect_mod.collect(slice_dir, provider)
+    record = record_evidence(mapping["capability"], provider, run_id, payload, evidence_dir)
+    result = eval_mod.evaluate(Path(slice_dir) / "policy", mapping["rego_package"], payload)
+    return align_mod.align(mapping, result, record)
+
+
+def _load_determinations(path):
+    data = json.loads(Path(path).read_text())
+    return data if isinstance(data, list) else [data]
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="fr20x")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    rs = sub.add_parser("run-slice", help="collect -> record -> evaluate -> align for one slice/provider")
+    rs.add_argument("slice_dir")
+    rs.add_argument("--provider", required=True)
+    rs.add_argument("--run-id", required=True)
+    rs.add_argument("--evidence-dir", default="evidence")
+
+    rn = sub.add_parser("render", help="render determinations to a target format")
+    rn.add_argument("determinations_json")
+    rn.add_argument("--format", choices=list(_RENDERERS), required=True)
+
+    rp = sub.add_parser("report", help="coverage + required/recommended rollup")
+    rp.add_argument("ksi_index_csv")
+    rp.add_argument("determinations_json")
+
+    sy = sub.add_parser("sync", help="sync FRMR catalog from FedRAMP/docs")
+    sy.add_argument("--dest", default="catalog/frmr")
+    sy.add_argument("--offline-dir")
+
+    vc = sub.add_parser("verify", help="verify a capability's evidence chain")
+    vc.add_argument("capability")
+    vc.add_argument("--evidence-dir", default="evidence")
+
+    args = parser.parse_args(argv)
+
+    if args.cmd == "run-slice":
+        det = _run_slice(args.slice_dir, args.provider, args.evidence_dir, args.run_id)
+        print(json.dumps(det, indent=2, sort_keys=True))
+        return 0
+    if args.cmd == "render":
+        dets = _load_determinations(args.determinations_json)
+        print(_RENDERERS[args.format].render(dets))
+        return 0
+    if args.cmd == "report":
+        idx = report_mod.load_ksi_index(args.ksi_index_csv)
+        dets = _load_determinations(args.determinations_json)
+        print(json.dumps(report_mod.coverage(idx, dets), indent=2))
+        return 0
+    if args.cmd == "sync":
+        from tools.sync import sync as do_sync
+        print(json.dumps(do_sync(args.dest, args.offline_dir), indent=2))
+        return 0
+    if args.cmd == "verify":
+        ok = verify_chain(args.capability, args.evidence_dir)
+        print("OK" if ok else "TAMPERED")
+        return 0 if ok else 1
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
