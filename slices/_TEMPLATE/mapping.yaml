@@ -1,0 +1,12 @@
+# Copy this folder to slices/<your-capability>/ and edit every field below.
+capability: template-capability        # lower-kebab; must match the folder name
+title: Human-Readable Capability Title
+ksis:                                  # the 20x KSI(s) this evidence satisfies
+  - id: KSI-XXX-YYY
+    obligation: required               # required (MUST) | recommended (SHOULD) — see catalog/frmr
+nist_controls:                         # the Rev 5 control(s) the SAME evidence satisfies
+  - ac-1
+providers:                            # one collector file per provider in collectors/
+  - aws
+evidence_source: "what control plane / API this is pulled from"
+rego_package: fr20x.template_capability   # must match the package line in policy/policy.rego
