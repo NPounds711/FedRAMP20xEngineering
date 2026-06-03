@@ -13,14 +13,18 @@ dependencies = ["PyYAML>=6.0", "jsonschema>=4.21"]
 dev = ["pytest>=8.0"]
 okta = ["requests>=2.31"]
 entra = ["msgraph-sdk>=1.0"]
+azure = ["azure-mgmt-network>=25.0", "azure-identity>=1.15"]
 aws = ["boto3>=1.34"]
-gcp = ["google-api-python-client>=2.0", "google-auth>=2.0"]
+gcp = ["google-api-python-client>=2.0", "google-auth>=2.0", "google-cloud-compute>=1.14"]
 collectors = [
   "requests>=2.31",
   "msgraph-sdk>=1.0",
+  "azure-mgmt-network>=25.0",
+  "azure-identity>=1.15",
   "boto3>=1.34",
   "google-api-python-client>=2.0",
   "google-auth>=2.0",
+  "google-cloud-compute>=1.14",
 ]
 
 [project.scripts]

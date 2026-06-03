@@ -1,0 +1,14 @@
+capability: network-restriction
+title: Default-Deny Network Boundaries with Managed Remote Access
+ksis:
+  - id: KSI-CNA-RNT
+    obligation: required
+nist_controls:
+  - ac-17.3
+  - sc-7.5
+providers:
+  - aws
+  - azure
+  - gcp
+evidence_source: "Cloud network control plane (AWS security groups, Azure NSGs, GCP VPC firewall rules)"
+rego_package: fr20x.network_restriction
