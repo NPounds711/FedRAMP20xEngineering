@@ -28,3 +28,17 @@ For an offline dry-run, pass `--config` a file of `{"raw": { ...normalized-shape
 
 ## Policy tests
 `opa test slices/network-restriction/policy`
+
+## Terraform reference
+- `terraform/compliant.tf` — HTTPS public, SSH restricted to an internal CIDR.
+- `terraform/noncompliant.tf` — SSH open to `0.0.0.0/0` (admin exposure; policy fails).
+Apply the non-compliant variant in a throwaway account to prove the Rego catches it.
+Per-provider Terraform for Azure/GCP is a documented follow-on.
+
+## Per-provider `--config`
+| Provider | Required config keys |
+|---|---|
+| `aws` | `region` (optional `default_deny` override) |
+| `azure` | `subscription_id` (optional `default_deny` override) |
+| `gcp` | `project` (optional `default_deny` override) |
+Every provider also accepts `{"raw": {...}}` for an offline dry-run (no network).
