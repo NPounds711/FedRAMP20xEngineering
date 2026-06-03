@@ -9,7 +9,7 @@ from engine.evaluate import opa_available
 
 ROOT = Path(__file__).resolve().parent.parent
 SLICE = ROOT / "slices" / "iam-mfa"
-PROVIDERS = ["okta", "entra", "aws", "gcp"]
+PROVIDERS = ["okta", "entra", "aws", "aws-iam", "gcp"]
 PAYLOAD_KEYS = {
     "subject_scope", "mfa_required_by_policy", "phishing_resistant_required_by_policy",
     "users_evaluated", "users_without_mfa", "users_with_non_phishing_resistant_mfa",

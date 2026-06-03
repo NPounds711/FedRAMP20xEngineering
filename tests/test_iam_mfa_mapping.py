@@ -12,4 +12,4 @@ def test_mapping_validates_and_targets_the_right_controls():
     assert {k["id"] for k in m["ksis"]} == {"KSI-IAM-MFA"}
     assert m["ksis"][0]["obligation"] == "required"
     assert set(m["nist_controls"]) == {"ia-2", "ia-2.1", "ia-2.2", "ia-2.8"}
-    assert set(m["providers"]) == {"okta", "entra", "aws", "gcp"}
+    assert set(m["providers"]) == {"okta", "entra", "aws", "aws-iam", "gcp"}
