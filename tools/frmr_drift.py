@@ -21,6 +21,34 @@ def extract_ksis(frmr_doc) -> dict:
     return out
 
 
+def load_slice_ksis(slices_dir) -> dict:
+    """Map each KSI id referenced by a slice's mapping.yaml to the slice name(s)."""
+    out = {}
+    for mapping in sorted(Path(slices_dir).glob("*/mapping.yaml")):
+        data = yaml.safe_load(mapping.read_text()) or {}
+        for k in data.get("ksis", []):
+            out.setdefault(k["id"], []).append(mapping.parent.name)
+    return out
+
+
+def affected(diff, slice_ksis) -> list:
+    """One record per (change, slice) where a change touches a KSI a slice maps to.
+
+    Only `renamed` is auto_fixable; removals/restatements/control changes need a human.
+    """
+    items = []
+    for r in diff["renamed"]:
+        for s in slice_ksis.get(r["old"], []):
+            items.append({"slice": s, "ksi": r["old"], "change": "renamed",
+                          "detail": r["new"], "auto_fixable": True})
+    for change in ("removed", "restated", "controls_changed"):
+        for ksi in diff[change]:
+            for s in slice_ksis.get(ksi, []):
+                items.append({"slice": s, "ksi": ksi, "change": change,
+                              "detail": "", "auto_fixable": False})
+    return items
+
+
 def diff_ksis(old, new) -> dict:
     """Structured diff between two extract_ksis() results.
 
