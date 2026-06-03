@@ -34,9 +34,9 @@ _USER_ERRORS = (
 )
 
 
-def _run_slice(slice_dir, provider, evidence_dir, run_id):
+def _run_slice(slice_dir, provider, evidence_dir, run_id, config=None):
     mapping = load_mapping(slice_dir)
-    payload = collect_mod.collect(slice_dir, provider)
+    payload = collect_mod.collect(slice_dir, provider, config or {})
     record = record_evidence(mapping["capability"], provider, run_id, payload, evidence_dir)
     result = eval_mod.evaluate(Path(slice_dir) / "policy", mapping["rego_package"], payload)
     return align_mod.align(mapping, result, record)
@@ -56,6 +56,7 @@ def _build_parser():
     rs.add_argument("--provider", required=True)
     rs.add_argument("--run-id", required=True)
     rs.add_argument("--evidence-dir", default="evidence")
+    rs.add_argument("--config", default=None, help="path to a JSON file passed to the collector")
 
     rn = sub.add_parser("render", help="render determinations to a target format")
     rn.add_argument("determinations_json")
@@ -77,7 +78,8 @@ def _build_parser():
 
 def _dispatch(args) -> int:
     if args.cmd == "run-slice":
-        det = _run_slice(args.slice_dir, args.provider, args.evidence_dir, args.run_id)
+        config = json.loads(Path(args.config).read_text()) if args.config else None
+        det = _run_slice(args.slice_dir, args.provider, args.evidence_dir, args.run_id, config)
         print(json.dumps(det, indent=2, sort_keys=True))
         return 0
     if args.cmd == "render":
