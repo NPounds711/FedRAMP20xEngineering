@@ -73,11 +73,20 @@ cron (daily) / manual workflow_dispatch
 - Add an **email-sending secret** (SMTP creds, or a Resend/SendGrid API key) as a repo secret; the workflow reads it to send the notification.
 - Ensure GitHub notifications (email and/or the mobile app) are on for the repo so the native "review requested" pings land.
 
-## Open item to confirm during planning
+## Resolved during planning (was an open item)
 
-Whether `FRMR.documentation.json` carries an explicit **KSI → NIST 800-53 control-id** mapping. If it does, `frmr_drift` also diffs control drift and can flag a slice whose mapped control changed; if not, v1 diffs KSI ids/statements only and the NIST control ids in each slice's `mapping.yaml` remain maintainer-owned.
+Confirmed by inspecting the live file (2026-06-03). The FRMR KSI structure is:
+```
+KSI.<FAMILY>.indicators.<KSI-XXX-YYY> = {
+  "fka": "KSI-XXX-NN",          # "formerly known as" — the old numbered id (built-in rename crosswalk)
+  "statement": "...",            # the requirement text
+  "controls": ["ac-3","au-2"],   # KSI -> NIST 800-53 control-id mapping (lowercase, present)
+  "updated": [{"date","comment"}]
+}
+```
+So: (1) **control mappings ARE present** (`controls`) → v1 drift detection **includes control-id drift**; and (2) **renames are detectable via `fka`** → the auto-drafter resolves id renames from the file itself, no external crosswalk needed. Note the mnemonic id is the dict **key**; the structure has no `"FRMR"` wrapper and uses dicts (not lists) for families/indicators — so the existing `extract_obligations`/`diff_catalog` (written for the old per-file list shape) are NOT reused; `frmr_drift` parses the consolidated structure directly. The existing `sync()`/`sync_baselines()` and their tests are left intact.
 
 ## Scope (YAGNI)
 
-- **In v1:** repoint sync to the consolidated FRMR; drift detection for KSI id/statement changes; cross-reference + classify against shipped slices; auto-draft safe id-renames; daily workflow that opens a reviewed PR with native + email notification.
+- **In v1:** add a consolidated-FRMR fetch; drift detection for KSI **id, statement, and NIST control-id** changes; cross-reference + classify against shipped slices; auto-draft safe id-renames (via `fka`); daily workflow that opens a reviewed PR with native + email notification.
 - **Out of v1:** auto-generating slices for brand-new KSIs; tracking multiple releases simultaneously; Rev5 change diffing; Slack/other channels; auto-merge of any kind.
