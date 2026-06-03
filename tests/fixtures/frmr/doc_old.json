@@ -1,0 +1,12 @@
+{
+  "info": {"version": "old"},
+  "KSI": {
+    "IAM": {"id": "KSI-IAM", "indicators": {
+      "KSI-IAM-01": {"statement": "Enforce phishing-resistant MFA.", "controls": ["ia-2", "ia-2.1"]},
+      "KSI-IAM-OLD": {"statement": "Soon to be removed.", "controls": ["ia-5"]}
+    }},
+    "CNA": {"id": "KSI-CNA", "indicators": {
+      "KSI-CNA-RNT": {"statement": "Limit inbound and outbound traffic.", "controls": ["sc-7"]}
+    }}
+  }
+}
