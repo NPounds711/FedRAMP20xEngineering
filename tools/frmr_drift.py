@@ -49,6 +49,43 @@ def affected(diff, slice_ksis) -> list:
     return items
 
 
+def draft_mapping_edits(affected_items, slices_dir, apply=False) -> list:
+    """For renames only, substitute old->new KSI id in the slice's mapping.yaml.
+    Returns the edits; applies them in place when apply=True. Non-renames are ignored."""
+    edits = []
+    for item in affected_items:
+        if item["change"] != "renamed" or not item["auto_fixable"]:
+            continue
+        path = Path(slices_dir) / item["slice"] / "mapping.yaml"
+        edits.append({"path": str(path), "old": item["ksi"], "new": item["detail"]})
+        if apply:
+            path.write_text(path.read_text().replace(item["ksi"], item["detail"]))
+    return edits
+
+
+def summarize(diff, affected_items) -> str:
+    """Human-readable PR body: change counts + auto-drafted vs needs-decision lists."""
+    lines = [
+        "## FRMR auto-sync",
+        "",
+        (f"Changes: {len(diff['added'])} added, {len(diff['removed'])} removed, "
+         f"{len(diff['renamed'])} renamed, {len(diff['restated'])} restated, "
+         f"{len(diff['controls_changed'])} control-set changes."),
+        "",
+    ]
+    auto = [a for a in affected_items if a["auto_fixable"]]
+    manual = [a for a in affected_items if not a["auto_fixable"]]
+    if auto:
+        lines += ["### Auto-drafted in this PR (id renames)"]
+        lines += [f"- `{a['slice']}`: `{a['ksi']}` → `{a['detail']}`" for a in auto] + [""]
+    if manual:
+        lines += ["### ⚠️ Needs your decision (not auto-applied)"]
+        lines += [f"- `{a['slice']}`: `{a['ksi']}` was **{a['change']}**" for a in manual] + [""]
+    if not affected_items:
+        lines += ["No shipped slice is affected; this PR only refreshes the catalog."]
+    return "\n".join(lines)
+
+
 def diff_ksis(old, new) -> dict:
     """Structured diff between two extract_ksis() results.
 

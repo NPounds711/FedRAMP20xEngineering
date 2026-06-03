@@ -54,3 +54,29 @@ def test_affected_classifies_by_change(tmp_path):
     assert by_slice["slice-a"]["detail"] == "KSI-IAM-MFA"
     assert by_slice["slice-c"]["change"] == "removed" and by_slice["slice-c"]["auto_fixable"] is False
     assert all(i["auto_fixable"] is False for i in items if i["slice"] == "slice-b")
+
+
+def test_draft_mapping_edits_applies_rename_only(tmp_path):
+    a = tmp_path / "slice-a"; a.mkdir()
+    (a / "mapping.yaml").write_text("capability: slice-a\nksis:\n  - id: KSI-IAM-01\n    obligation: required\n")
+    c = tmp_path / "slice-c"; c.mkdir()
+    (c / "mapping.yaml").write_text("capability: slice-c\nksis:\n  - id: KSI-IAM-OLD\n    obligation: required\n")
+    diff = frmr_drift.diff_ksis(frmr_drift.extract_ksis(OLD), frmr_drift.extract_ksis(NEW))
+    aff = frmr_drift.affected(diff, frmr_drift.load_slice_ksis(tmp_path))
+
+    edits = frmr_drift.draft_mapping_edits(aff, tmp_path, apply=True)
+
+    assert edits == [{"path": str(a / "mapping.yaml"), "old": "KSI-IAM-01", "new": "KSI-IAM-MFA"}]
+    assert "KSI-IAM-MFA" in (a / "mapping.yaml").read_text()   # rename applied
+    assert "KSI-IAM-OLD" in (c / "mapping.yaml").read_text()   # removal NOT auto-edited
+
+
+def test_summarize_separates_auto_and_manual():
+    diff = frmr_drift.diff_ksis(frmr_drift.extract_ksis(OLD), frmr_drift.extract_ksis(NEW))
+    aff = [
+        {"slice": "iam-mfa", "ksi": "KSI-IAM-01", "change": "renamed", "detail": "KSI-IAM-MFA", "auto_fixable": True},
+        {"slice": "iam-mfa", "ksi": "KSI-IAM-OLD", "change": "removed", "detail": "", "auto_fixable": False},
+    ]
+    body = frmr_drift.summarize(diff, aff)
+    assert "Auto-drafted" in body and "KSI-IAM-01` → `KSI-IAM-MFA" in body
+    assert "Needs your decision" in body and "removed" in body
