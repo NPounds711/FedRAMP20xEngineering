@@ -86,6 +86,54 @@ def summarize(diff, affected_items) -> str:
     return "\n".join(lines)
 
 
+def run(catalog_path, slices_dir, new_doc) -> dict:
+    """Diff a fetched FRMR doc against the committed catalog snapshot. Pure: writes nothing."""
+    catalog_path = Path(catalog_path)
+    old_doc = json.loads(catalog_path.read_text()) if catalog_path.exists() else {"KSI": {}}
+    diff = diff_ksis(extract_ksis(old_doc), extract_ksis(new_doc))
+    changed = any(diff[k] for k in diff)
+    aff = affected(diff, load_slice_ksis(slices_dir))
+    return {"changed": changed, "diff": diff, "affected": aff, "summary": summarize(diff, aff)}
+
+
+def _load_doc(offline_doc):
+    if offline_doc:
+        return json.loads(Path(offline_doc).read_text())
+    from tools.sync import DOC_FILE, FRMR_BASE, _fetch
+    return json.loads(_fetch(FRMR_BASE + DOC_FILE))
+
+
+def main(argv=None) -> int:
+    import argparse
+    p = argparse.ArgumentParser(prog="frmr-drift")
+    p.add_argument("--catalog", default="catalog/FRMR.documentation.json")
+    p.add_argument("--slices", default="slices")
+    p.add_argument("--offline-doc", help="read the new FRMR from a local file instead of the network")
+    p.add_argument("--summary-out", help="write the PR-body summary to this path")
+    p.add_argument("--github-output", help="append changed=<bool> for GitHub Actions")
+    p.add_argument("--apply", action="store_true", help="write the refreshed catalog and apply rename edits")
+    args = p.parse_args(argv)
+
+    new_doc = _load_doc(args.offline_doc)
+    result = run(args.catalog, args.slices, new_doc)
+
+    if args.apply and result["changed"]:
+        Path(args.catalog).write_text(json.dumps(new_doc, indent=2, sort_keys=True))
+        draft_mapping_edits(result["affected"], args.slices, apply=True)
+    if args.summary_out:
+        Path(args.summary_out).write_text(result["summary"])
+    if args.github_output:
+        with open(args.github_output, "a") as fh:
+            fh.write(f"changed={'true' if result['changed'] else 'false'}\n")
+    print(result["summary"])
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())
+
+
 def diff_ksis(old, new) -> dict:
     """Structured diff between two extract_ksis() results.
 

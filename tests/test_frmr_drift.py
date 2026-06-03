@@ -80,3 +80,48 @@ def test_summarize_separates_auto_and_manual():
     body = frmr_drift.summarize(diff, aff)
     assert "Auto-drafted" in body and "KSI-IAM-01` → `KSI-IAM-MFA" in body
     assert "Needs your decision" in body and "removed" in body
+
+
+def test_run_reports_changed_and_summary(tmp_path):
+    catalog = tmp_path / "catalog" / "FRMR.documentation.json"
+    catalog.parent.mkdir(parents=True)
+    catalog.write_text(json.dumps(OLD))
+    slices = tmp_path / "slices"; (slices / "iam-mfa").mkdir(parents=True)
+    (slices / "iam-mfa" / "mapping.yaml").write_text("capability: iam-mfa\nksis:\n  - id: KSI-IAM-01\n    obligation: required\n")
+
+    result = frmr_drift.run(str(catalog), str(slices), NEW)
+
+    assert result["changed"] is True
+    assert any(a["change"] == "renamed" for a in result["affected"])
+    assert "FRMR auto-sync" in result["summary"]
+
+
+def test_run_no_change(tmp_path):
+    catalog = tmp_path / "FRMR.documentation.json"
+    catalog.write_text(json.dumps(NEW))
+    slices = tmp_path / "slices"; slices.mkdir()
+    result = frmr_drift.run(str(catalog), str(slices), NEW)
+    assert result["changed"] is False
+
+
+def test_main_apply_writes_catalog_and_summary(tmp_path):
+    catalog = tmp_path / "catalog" / "FRMR.documentation.json"
+    catalog.parent.mkdir(parents=True)
+    catalog.write_text(json.dumps(OLD))
+    slices = tmp_path / "slices"; (slices / "iam-mfa").mkdir(parents=True)
+    (slices / "iam-mfa" / "mapping.yaml").write_text("capability: iam-mfa\nksis:\n  - id: KSI-IAM-01\n    obligation: required\n")
+    new_path = tmp_path / "new.json"; new_path.write_text(json.dumps(NEW))
+    summary = tmp_path / "summary.md"
+    gh_out = tmp_path / "gh_out"
+
+    rc = frmr_drift.main([
+        "--catalog", str(catalog), "--slices", str(slices),
+        "--offline-doc", str(new_path), "--summary-out", str(summary),
+        "--github-output", str(gh_out), "--apply",
+    ])
+
+    assert rc == 0
+    assert json.loads(catalog.read_text())["info"]["version"] == "new"
+    assert "KSI-IAM-MFA" in (slices / "iam-mfa" / "mapping.yaml").read_text()
+    assert "FRMR auto-sync" in summary.read_text()
+    assert "changed=true" in gh_out.read_text()
