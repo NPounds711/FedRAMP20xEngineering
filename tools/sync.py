@@ -53,6 +53,38 @@ def _fetch(url: str) -> str:
         return response.read().decode("utf-8")
 
 
+# The consolidated machine-readable FRMR (definitions, requirements, KSIs) — the
+# single source of truth for auto-sync. Uses the current mnemonic KSI ids and
+# carries `fka` (old numbered ids) + per-KSI `controls`.
+DOC_FILE = "FRMR.documentation.json"
+
+
+def sync_documentation(dest, offline_dir=None) -> dict:
+    """Sync the consolidated FRMR.documentation.json into dest.
+
+    Same contract as sync(): {"written": {name: bytes}, "failed": {name: err}}.
+    Online fetch failure is recorded under "failed" (never silently ignored); in
+    offline mode an absent file is skipped.
+    """
+    dest = Path(dest)
+    dest.mkdir(parents=True, exist_ok=True)
+    written, failed = {}, {}
+    try:
+        if offline_dir is not None:
+            source = Path(offline_dir) / DOC_FILE
+            if source.exists():
+                content = source.read_text()
+            else:
+                return {"written": {}, "failed": {}}
+        else:
+            content = _fetch(FRMR_BASE + DOC_FILE)
+    except (urllib.error.URLError, OSError) as exc:
+        return {"written": {}, "failed": {DOC_FILE: str(exc)}}
+    (dest / DOC_FILE).write_text(content)
+    written[DOC_FILE] = len(content)
+    return {"written": written, "failed": failed}
+
+
 # Rev 5 OSCAL baseline profiles (GSA/fedramp-automation). Verify these paths against
 # the live repo on first online sync — the dist layout has changed across releases.
 BASELINE_BASE = (

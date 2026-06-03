@@ -1,0 +1,71 @@
+name: FRMR auto-sync
+
+on:
+  schedule:
+    - cron: "17 7 * * *"   # daily ~07:17 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install PyYAML
+
+      - name: Detect FRMR drift and draft fixes
+        id: drift
+        run: |
+          python -m tools.frmr_drift \
+            --catalog catalog/FRMR.documentation.json \
+            --slices slices \
+            --summary-out frmr-summary.md \
+            --github-output "$GITHUB_OUTPUT" \
+            --apply
+
+      - name: Open or update review PR
+        if: steps.drift.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        id: cpr
+        with:
+          branch: frmr-sync
+          commit-message: "Sync FRMR catalog and draft slice fixes"
+          title: "FRMR auto-sync: review FedRAMP updates"
+          body-path: frmr-summary.md
+          labels: frmr-sync
+          reviewers: NPounds711
+          assignees: NPounds711
+
+      - name: Email on PR open
+        if: steps.drift.outputs.changed == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USER }}
+          password: ${{ secrets.SMTP_PASS }}
+          from: FRMR Auto-Sync <${{ secrets.SMTP_USER }}>
+          to: ${{ secrets.NOTIFY_EMAIL }}
+          subject: "FRMR auto-sync PR opened for review"
+          body: |
+            FedRAMP FRMR changed. A review PR is open:
+            ${{ steps.cpr.outputs.pull-request-url }}
+
+      - name: Fail loudly if the FRMR source could not be fetched
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USER }}
+          password: ${{ secrets.SMTP_PASS }}
+          from: FRMR Auto-Sync <${{ secrets.SMTP_USER }}>
+          to: ${{ secrets.NOTIFY_EMAIL }}
+          subject: "FRMR auto-sync FAILED (source may have moved)"
+          body: "The FRMR sync job failed - the source URL may have changed. Check the Actions run."
