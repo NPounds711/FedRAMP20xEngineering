@@ -12,6 +12,7 @@ providers:
   - okta
   - entra
   - aws
+  - aws-iam
   - gcp
 evidence_source: "IdP / IAM control plane (Okta API, Microsoft Graph, AWS IAM Identity Center, Google Admin SDK)"
 rego_package: fr20x.iam_mfa

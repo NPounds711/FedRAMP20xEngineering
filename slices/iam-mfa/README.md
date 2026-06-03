@@ -37,5 +37,6 @@ Per-provider Terraform for Entra/Okta/Google is a documented follow-on.
 | `okta` | `okta_domain`, `token_env`, `policy` |
 | `entra` | `tenant_id`, `client_id`, `client_secret_env`, `policy` |
 | `aws` | `identity_store_id`, `region`, `policy` |
+| `aws-iam` | `policy` (classic IAM users via iam:ListUsers + iam:ListMFADevices; uses ambient credentials) |
 | `gcp` | `customer`, `delegated_admin`, `sa_key_env`, `security_key_users`, `policy` |
 Every provider also accepts `{"raw": {...}}` for an offline dry-run (no network).
