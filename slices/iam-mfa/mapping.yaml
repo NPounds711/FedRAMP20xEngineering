@@ -1,0 +1,17 @@
+capability: iam-mfa
+title: Phishing-Resistant Multi-Factor Authentication for Human Users
+ksis:
+  - id: KSI-IAM-MFA
+    obligation: required
+nist_controls:
+  - ia-2
+  - ia-2.1
+  - ia-2.2
+  - ia-2.8
+providers:
+  - okta
+  - entra
+  - aws
+  - gcp
+evidence_source: "IdP / IAM control plane (Okta API, Microsoft Graph, AWS IAM Identity Center, Google Admin SDK)"
+rego_package: fr20x.iam_mfa
