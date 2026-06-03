@@ -69,6 +69,9 @@ def _build_parser():
     sy = sub.add_parser("sync", help="sync FRMR catalog from FedRAMP/docs")
     sy.add_argument("--dest", default="catalog/frmr")
     sy.add_argument("--offline-dir")
+    sy.add_argument("--baselines", action="store_true",
+                    help="also sync Rev 5 OSCAL baseline profiles into catalog/baselines")
+    sy.add_argument("--baselines-dest", default="catalog/baselines")
 
     vc = sub.add_parser("verify", help="verify a capability's evidence chain")
     vc.add_argument("capability")
@@ -93,7 +96,11 @@ def _dispatch(args) -> int:
         return 0
     if args.cmd == "sync":
         from tools.sync import sync as do_sync
-        print(json.dumps(do_sync(args.dest, args.offline_dir), indent=2))
+        out = {"frmr": do_sync(args.dest, args.offline_dir)}
+        if args.baselines:
+            from tools.sync import sync_baselines
+            out["baselines"] = sync_baselines(args.baselines_dest, args.offline_dir)
+        print(json.dumps(out, indent=2))
         return 0
     if args.cmd == "verify":
         chain = Path(args.evidence_dir) / args.capability / "chain.jsonl"
