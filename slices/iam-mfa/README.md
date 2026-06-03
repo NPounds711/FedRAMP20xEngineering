@@ -24,3 +24,18 @@ docstring). For an offline dry-run, pass `{"raw": { ...normalized-shaped raw... 
 
 ## Policy tests
 `opa test slices/iam-mfa/policy` — the compliant fixture passes, the non-compliant fails.
+
+## Terraform reference
+- `terraform/compliant.tf` — IAM group that denies actions without MFA present.
+- `terraform/noncompliant.tf` — same group without the MFA condition (policy fails).
+Apply the non-compliant variant in a throwaway account to prove the Rego catches it.
+Per-provider Terraform for Entra/Okta/Google is a documented follow-on.
+
+## Per-provider `--config`
+| Provider | Required config keys |
+|---|---|
+| `okta` | `okta_domain`, `token_env`, `policy` |
+| `entra` | `tenant_id`, `client_id`, `client_secret_env`, `policy` |
+| `aws` | `identity_store_id`, `region`, `policy` |
+| `gcp` | `customer`, `delegated_admin`, `sa_key_env`, `security_key_users`, `policy` |
+Every provider also accepts `{"raw": {...}}` for an offline dry-run (no network).
