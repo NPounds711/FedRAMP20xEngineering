@@ -59,6 +59,19 @@ def normalize(raw):
     }
 
 
+def _derive_default_deny(groups):
+    """default_deny holds when the VPC default security group has no externally
+    sourced (CIDR) ingress rule. The benign self-referencing rule that every AWS
+    default SG ships with (UserIdGroupPairs only, no IpRanges) does not count."""
+    for sg in groups:
+        if sg.get("GroupName") != "default":
+            continue
+        for perm in sg.get("IpPermissions", []):
+            if perm.get("IpRanges") or perm.get("Ipv6Ranges"):
+                return False
+    return True
+
+
 def collect(config):
     if "raw" in config:
         return normalize(config["raw"])
@@ -68,7 +81,6 @@ def collect(config):
     groups = ec2.describe_security_groups()["SecurityGroups"]
 
     rules = []
-    default_has_ingress = False
     for sg in groups:
         for i, perm in enumerate(sg.get("IpPermissions", [])):
             proto = str(perm.get("IpProtocol", "-1"))
@@ -84,8 +96,6 @@ def collect(config):
                     "to_port": to_port,
                     "cidr": cidr,
                 })
-        if sg.get("GroupName") == "default" and sg.get("IpPermissions"):
-            default_has_ingress = True
 
-    default_deny = config.get("default_deny", not default_has_ingress)
+    default_deny = config.get("default_deny", _derive_default_deny(groups))
     return normalize({"default_deny": default_deny, "rules": rules})
