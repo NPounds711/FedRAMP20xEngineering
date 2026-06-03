@@ -53,6 +53,47 @@ def _fetch(url: str) -> str:
         return response.read().decode("utf-8")
 
 
+# Rev 5 OSCAL baseline profiles (GSA/fedramp-automation). Verify these paths against
+# the live repo on first online sync — the dist layout has changed across releases.
+BASELINE_BASE = (
+    "https://raw.githubusercontent.com/GSA/fedramp-automation/master/"
+    "dist/content/rev5/baselines/json/"
+)
+BASELINE_FILES = [
+    "FedRAMP_rev5_LOW-baseline_profile.json",
+    "FedRAMP_rev5_MODERATE-baseline_profile.json",
+    "FedRAMP_rev5_HIGH-baseline_profile.json",
+    "FedRAMP_rev5_LI-SaaS-baseline_profile.json",
+]
+
+
+def sync_baselines(dest, offline_dir=None) -> dict:
+    """Sync Rev 5 OSCAL baseline profiles into dest.
+
+    Same contract as sync(): returns {"written": {name: bytes}, "failed": {name: err}}.
+    Online fetch failures are recorded under "failed" without aborting; in offline
+    mode, files absent from offline_dir are skipped silently.
+    """
+    dest = Path(dest)
+    dest.mkdir(parents=True, exist_ok=True)
+    written, failed = {}, {}
+    for fname in BASELINE_FILES:
+        try:
+            if offline_dir is not None:
+                source = Path(offline_dir) / fname
+                if not source.exists():
+                    continue
+                content = source.read_text()
+            else:
+                content = _fetch(BASELINE_BASE + fname)
+        except (urllib.error.URLError, OSError) as exc:
+            failed[fname] = str(exc)
+            continue
+        (dest / fname).write_text(content)
+        written[fname] = len(content)
+    return {"written": written, "failed": failed}
+
+
 def sync(dest, offline_dir=None) -> dict:
     """Sync FRMR files into dest.
 
